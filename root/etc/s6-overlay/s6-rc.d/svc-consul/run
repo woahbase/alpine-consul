@@ -1,0 +1,20 @@
+#!/usr/bin/with-contenv bash
+set -e
+
+usercmd () { if [ "X${EUID}" != "X0" ]; then ${1} "${@:2}"; else s6-setuidgid ${PUID:-1000}:${PGID:-1000} ${1} "${@:2}"; fi; }
+
+CONSUL_HOME="${CONSUL_HOME:-/consul}";
+CONSUL_CONFIG_DIR="${CONSUL_CONFIG_DIR:-${CONSUL_HOME}/config}";
+CONSUL_DATA_DIR="${CONSUL_DATA_DIR:-${CONSUL_HOME}/data}";
+# CONSUL_ARGS="${CONSUL_ARGS:- -datacenter dc1 -node consul -bind=0.0.0.0 -client=0.0.0.0}"; # add as needed
+
+cd ${CONSUL_CONFIG_DIR} || exit 1;
+
+usercmd \
+exec \
+    /usr/local/bin/consul \
+    agent \
+    -config-dir="${CONSUL_CONFIG_DIR}" \
+    -data-dir="${CONSUL_DATA_DIR}" \
+    ${CONSUL_ARGS} \
+    ;

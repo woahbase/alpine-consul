@@ -1,0 +1,55 @@
+#!/usr/bin/with-contenv bash
+set -e
+
+vecho () { if [ "${S6_VERBOSITY:-1}" -gt 0 ]; then echo "[$0] $@"; fi; }
+
+CONSUL_HOME="${CONSUL_HOME:-/consul}";
+CONSUL_CONFIG_DIR="${CONSUL_CONFIG_DIR:-${CONSUL_HOME}/config}";
+CONSUL_DATA_DIR="${CONSUL_DATA_DIR:-${CONSUL_HOME}/data}";
+
+vecho "Ensure configuration directories exist";
+mkdir -p \
+    "${CONSUL_CONFIG_DIR}" \
+    "${CONSUL_DATA_DIR}" \
+    ;
+
+if [ -n "${CONSUL_LOCAL_CONFIG}" ];
+then
+    vecho "Adding local config to ${CONSUL_CONFIG_DIR}";
+    echo "${CONSUL_LOCAL_CONFIG}" \
+    > "${CONSUL_CONFIG_DIR}/local.${CONSUL_CONFLANG:-hcl}";
+fi;
+
+_subst () {
+    sed \
+        -e "s|CONSUL_HOME|${CONSUL_HOME}|g" \
+        -e "s|CONSUL_CONFIG_DIR|${CONSUL_CONFIG_DIR}|g" \
+        -e "s|CONSUL_DATA_DIR|${CONSUL_DATA_DIR}|g" \
+    $1 > $2;
+}
+
+# ensure default conf exists
+if [ -z "${CONSUL_SKIP_ENSURECONFIG}" ] \
+&& [ $(find "${CONSUL_CONFIG_DIR}" -type f -iname '*.hcl' -or -iname '*.json' | wc -l) -eq 0 ];
+then
+    vecho "Setting up default config in ${CONSUL_CONFIG_DIR}";
+    _subst /defaults/agent.hcl ${CONSUL_CONFIG_DIR}/agent.hcl;
+fi;
+
+# fix permissions
+if [ -z "${CONSUL_SKIP_PERMFIX}" ] \
+&& [ "X${EUID}" == "X0" ]; # requires root
+then
+    vecho "Fixing permissions.";
+    chown -R ${S6_USER:-alpine}:${PGID:-1000} \
+        ${CONSUL_CONFIG_DIR} \
+        ${CONSUL_DATA_DIR} \
+        ;
+fi;
+
+if [ -z "${CONSUL_SKIP_SETCAP}" ] \
+&& [ "X${EUID}" == "X0" ]; # requires root
+then
+    vecho "Fixing capabilities.";
+    /usr/sbin/setcap CAP_NET_BIND_SERVICE=+ep $(readlink -f $(which consul));
+fi;
