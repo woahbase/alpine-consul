@@ -22,7 +22,7 @@ IMAGETAG  ?= $(REGISTRY)/$(ORGNAME)/$(REPONAME):$(ARCH)
 CNTNAME   := docker_$(SVCNAME)
 CNTSHELL  := /bin/bash
 
-VERSION   ?= 1.18.2#$(call get_gh_version,hashicorp/consul)
+VERSION   ?= 1.19.2#$(call get_gh_version,hashicorp/consul)
 
 TESTCMD   := \
 	uname -a; \
